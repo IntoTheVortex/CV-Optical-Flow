@@ -20,7 +20,7 @@ def get_image_grayscale(image_file):
         h, w, c = image.shape
     '''
         
-    image = image/255 #normalize
+    #image = image/255 #normalize
     image_padded = np.pad(image, ((p,p),(p,p)), 'constant')
 
     return image_padded 
@@ -72,35 +72,45 @@ def ols_flow(Ix, Iy, Itp):
                 continue
             else:
                 #get A, then compute A transpose A:
-                #pixel_group = np.asarray(Ix[i-1:i+f, j-1:j+f]).flatten().T
-                #A = pixel_group.T
-                print('i:',i, 'j:',j, 'ix:',Ix[i][j], 'iy',Iy[i][j])
-                #A = np.stack((pixel_group, pixel_group), axis=1)
-                #A = A * Ix[i:(i-1)+f, j:(j-1)+f]
+                #print('i:',i, 'j:',j, 'ix:',Ix[i][j], 'iy',Iy[i][j])
                 ax = np.asarray(Ix[i-1:i+f, j-1:j+f].flatten()).T 
                 ay = np.asarray(Iy[i-1:i+f, j-1:j+f].flatten()).T
                 A = np.stack((ax,ay), axis=1)
-                print('A:81')
-                print(A.shape)
-                print(A)
-                #A = np.concatenate(
-                    #np.matmul(A[:,0], Ix[i-1:i+f, j-1:j+f]), 
-                    #np.matmul(A[:,1], Iy[i-1:i+f, j-1:j+f]))
+                #print('A:81')
+                #print(A.shape)
+                #print(A)
                 AtA = np.matmul(A.T, A)
                 #print('AtA:86')
                 #print(AtA.shape)
+
                 #get inverse of AtA
                 try:
                     inv_AtA = np.linalg.inv(AtA)
                 except:
                     inv_AtA = np.linalg.pinv(AtA)
 
+                #get Atb, then complete calculation V = AtA * Atb
                 b = np.asarray(Itp[i-1:i+f, j-1:j+f]).flatten().T
-                #b = np.matmul(b, pixel_group)
                 Atb = np.matmul(A.T, b)
                 V[i][j] = np.matmul(inv_AtA, Atb)
 
     return V
+
+def plot_vectors(image, V):
+    #vectors = np.stack((np.arange()))
+    color = (0,50,250)
+    for x in range(len(V)):
+        for y in range(V.shape[1]-2):
+            if V[x][y][0] > 0 or V[x][y][1] > 0:
+                x1 = int(x + V[x][y][0])
+                y1 = int(y + V[x][y][1]) 
+                print('x', x1, 'y', y1)
+                #cv.arrowedLine(image, (x,y), (x1,y1), color=color)
+                mask = cv.line(image, (x,y), (x1,y1), (0,255,0), 1)
+
+    image = cv.add(image, mask)
+    #image = np.asarray(np.clip(image*255, 0, 255), dtype=np.uint8);
+    cv.imwrite("test.png", image)
     
 
 def main():
@@ -114,7 +124,8 @@ def main():
     Ix = convolve(image1, gx, 1) 
     Iy = convolve(image1, gy, 1) 
     V = ols_flow(Ix, Iy, Itp)
-    print(V)
+    #print(V)
+    plot_vectors(image1, V)
 
 
     #cv.imwrite('result.jpg', result)
