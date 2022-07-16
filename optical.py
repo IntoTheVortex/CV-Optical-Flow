@@ -8,26 +8,18 @@ import cv2 as cv
 
 
 
-def get_image_grayscale(image_file):
+def get_image_padded(image):
     p = 1 #how many zeros to pad the matrix with
-
-    image = cv.imread(image_file, cv.IMREAD_GRAYSCALE)
-
-    h, w = image.shape
-    '''don't think I'll need to resize
-    while (h > 1600 or w> 1600):
-        image = cv.resize(image, None, fx=0.9, fy=0.9, interpolation=cv.INTER_LINEAR)
-        h, w, c = image.shape
-    '''
         
-    #image = image/255 #normalize
+    image = image/255 #normalize
     image_padded = np.pad(image, ((p,p),(p,p)), 'constant')
 
     return image_padded 
 
 def get_pixel_intensity_difference(image1, image2):
+    image1 = np.asarray(image1/255, dtype=np.float64)
+    image2 = np.asarray(image2/255, dtype=np.float64)
     difference = image2 - image1
-    #i thought it would be more involved
     return difference
 
 def convolve(data, _filter, p):
@@ -66,9 +58,10 @@ def ols_flow(Ix, Iy, Itp):
     print('ix shape:', Ix.shape)
     V = np.zeros([n,m,2])
     print('v shape:', V.shape)
-    for i in range(1,n-1):
-        for j in range(1,m-1):
-            if i+f > n or j+f > m:
+    print('it shape:', Itp.shape)
+    for i in range(1,n-2):
+        for j in range(1,m-2):
+            if i+f > (n-2) or j+f > (m-2):
                 continue
             else:
                 #get A, then compute A transpose A:
@@ -99,14 +92,14 @@ def ols_flow(Ix, Iy, Itp):
 def plot_vectors(image, V):
     #vectors = np.stack((np.arange()))
     color = (0,50,250)
-    for x in range(len(V)):
-        for y in range(V.shape[1]-2):
+    for x in range(0, len(V), 4):
+        for y in range(0, V.shape[1]-2, 4):
             if V[x][y][0] > 0 or V[x][y][1] > 0:
                 x1 = int(x + V[x][y][0])
                 y1 = int(y + V[x][y][1]) 
-                print('x', x1, 'y', y1)
+                #print('x', x1, 'y', y1)
                 #cv.arrowedLine(image, (x,y), (x1,y1), color=color)
-                mask = cv.line(image, (x,y), (x1,y1), (0,255,0), 1)
+                mask = cv.line(image, (x,y), (x1,y1), color=(0,.8,0), thickness=1)
 
     image = cv.add(image, mask)
     #image = np.asarray(np.clip(image*255, 0, 255), dtype=np.uint8);
@@ -116,13 +109,14 @@ def plot_vectors(image, V):
 def main():
     name1 = 'frame1_a.png'
     name2 = 'frame1_b.png'
-    image1 = get_image_grayscale(name1)
-    image2 = get_image_grayscale(name2)
+    image1 = cv.imread(name1, cv.IMREAD_GRAYSCALE)
+    image2 = cv.imread(name2, cv.IMREAD_GRAYSCALE)
+    image_padded = get_image_padded(image1)
 
     Itp = get_pixel_intensity_difference(image1, image2)
     gx, gy = create_dfilters()
-    Ix = convolve(image1, gx, 1) 
-    Iy = convolve(image1, gy, 1) 
+    Ix = convolve(image_padded, gx, 1) 
+    Iy = convolve(image_padded, gy, 1) 
     V = ols_flow(Ix, Iy, Itp)
     #print(V)
     plot_vectors(image1, V)
